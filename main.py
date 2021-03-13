@@ -4,10 +4,6 @@ import numpy as np
 import cv2
 from PyQt5 import QtWidgets
 import design
-from PyQt5 import QtGui
-from PyQt5 import QtCore
-from PyQt5 import QtMultimedia
-from PyQt5 import QtMultimediaWidgets
 
 
 class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
@@ -20,8 +16,17 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.is_pause = False
         self.is_open = False
         self.is_streaming = False
+        self.is_prev = False
 
+        self.depth_frame_index = None
+        self.frame_timestamp = None
+        self.num_depth_frames = None
+        self.num_color_frames = None
+        self.device = None
+        self.depth_stream = None
+        self.color_stream = None
         self.dev = dev
+        self.playback_support = None
 
         self.open_button.clicked.connect(self.open_device)
         self.quit_button.clicked.connect(self.quit_player)
@@ -30,6 +35,8 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.next_button.clicked.connect(self.next_frame)
         self.prev_button.clicked.connect(self.prev_frame)
         self.stop_button.clicked.connect(self.stop_video)
+        self.horizontalSlider.sliderMoved.connect(self.set_position)
+        self.horizontalSlider.valueChanged.connect(self.set_position)
 
     def open_device(self):
         path = self.browse_folder()
@@ -39,31 +46,27 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
             self.depth_stream = self.device.create_depth_stream()
             self.color_stream = self.device.create_color_stream()
             self.is_open = True
+            self.num_depth_frames = self.depth_stream.get_number_of_frames()
+            self.num_color_frames = self.color_stream.get_number_of_frames()
+            self.playback_support = openni2.PlaybackSupport(self.device)
             print('Device open')
 
     def get_img(self):
         frame = self.depth_stream.read_frame()
+        self.depth_frame_index = frame.frameIndex
+        self.frame_timestamp = frame.timestamp
         frame_data = frame.get_buffer_as_triplet()
         img = np.frombuffer(frame_data, dtype=np.uint16)
         img.shape = (1, 480, 640)
         img = np.concatenate((img, img, img), axis=0)
         img = np.swapaxes(img, 0, 2)
         img = np.swapaxes(img, 0, 1)
-        print('Image received')
+        # print('Image received')
+        # print(self.depth_frame_index)
         return img
-
-    def load_video(self):
-        pass
 
     def play_video(self):
         self.is_pause = False
-
-        print('is_open = ', self.is_open)
-        print('is_play = ', self.is_play)
-        print('is_stop = ', self.is_stop)
-        print('is_pause = ', self.is_pause)
-        print('is_streaming = ', self.is_streaming)
-
         if not self.is_open:
             self.open_device()
 
@@ -75,7 +78,6 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
                 cv2.waitKey(1)
                 if self.is_pause:
                     self.stop_streaming()
-                    print('Pause video')
                     break
                 if self.is_stop:
                     self.close_streaming()
@@ -111,21 +113,26 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         print('Next')
 
     def prev_frame(self):
-        print('Previous')
+        print('Prev')
 
-    def scrolling_video(self):
+    def set_position(self, position):
         pass
+
+    def position_changed(self):
+        self.horizontalSlider.setValue()
+
+    def duration_changed(self):
+        self.horizontalSlider.setRange(0, self.num_depth_frames)
 
     def stop_video(self):
         self.is_stop = True
         if self.is_pause:
             self.close_streaming()
-            print('Ух ты! Мы вышли из бухты')
 
     def browse_folder(self):
         p = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', r'C:\Users', filter='*.oni')
         print(p[0])
-        if p:
+        if p[0]:
             return bytes(''.join([el if el != '/' else '//' for el in list(p[0])]), encoding='utf-8')
 
     def quit_player(self):
@@ -134,12 +141,9 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
 
         if reply == QtWidgets.QMessageBox.Yes:
             if self.is_streaming:
-                self.close_streaming()
-                print('Стриминг закрыт')
+                self.is_stop = True
             openni2.unload()
             self.close()
-            print('Вышли нах')
-
 
 
 if __name__ == '__main__':
@@ -149,4 +153,3 @@ if __name__ == '__main__':
     o_player = OniPlayer(dev)
     o_player.show()
     app.exec_()
-
