@@ -15,8 +15,11 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        self.play = None
-        self.stop = None
+        self.is_play = None
+        self.is_stop = None
+        self.is_pause = None
+
+        self.dev = dev
 
         self.open_button.clicked.connect(self.open_device)
         self.quit_button.clicked.connect(self.quit_player)
@@ -30,7 +33,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         path = self.browse_folder()
         print(path)
         if path:
-            self.device = dev.open_file(path)
+            self.device = self.dev.open_file(path)
             self.depth_stream = self.device.create_depth_stream()
             self.color_stream = self.device.create_color_stream()
             print('Device open')
@@ -43,7 +46,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         img = np.concatenate((img, img, img), axis=0)
         img = np.swapaxes(img, 0, 2)
         img = np.swapaxes(img, 0, 1)
-        print('Image received')
+        # print('Image received')
         return img
 
     def start_streaming(self):
@@ -53,24 +56,31 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         pass
 
     def play_video(self):
-        if not self.play:
-            self.play = True
-            print('enter play')
+        print(self.is_play)
+        if not self.is_play:
+            self.open_device()
+            self.is_play = True
+        elif self.is_play:
             self.depth_stream.start()
-            print('start depth')
             self.color_stream.start()
-            print('Start streaming')
 
             while True:
                 img = self.get_img()
-                img = cv2.imshow('image', img)
-                self.label.setPixmap(QtGui.QPixmap.fromImage(img))
-                if cv2.waitKey(34) & 0xFF == ord('q'):
-                    self.play = False
-                    self.stop = False
-                    # cv2.destroyAllWindows()
+                cv2.imshow('image', img)
+                cv2.waitKey(1)
+                if self.is_stop:
+                    self.is_stop = False
+                    self.is_play = False
+                    cv2.destroyAllWindows()
+                    self.depth_stream.stop()
+                    self.color_stream.stop()
+                    print(self.dev)
+                    print(self.device)
+                    self.device.close()
+                    print(self.dev)
+                    print(self.device)
+                    print('Device closed')
                     break
-
 
     def pause_video(self):
         print('Pause')
@@ -82,7 +92,8 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         print('Previous')
 
     def stop_video(self):
-        return ord('q')
+        print('Я стопаю, отвечаю')
+        self.is_stop = True
 
     def browse_folder(self):
         p = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', r'C:\Users', filter='*.oni')
@@ -95,10 +106,13 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
                                                QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No)
 
         if reply == QtWidgets.QMessageBox.Yes:
+            # Добавить условие проверки запущенных потоков
             # self.depth_stream.stop()
             # self.color_stream.stop()
-            # openni2.unload()
+            openni2.unload()
             self.close()
+            print('Вышли нах')
+
 
 
 if __name__ == '__main__':
