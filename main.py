@@ -15,9 +15,11 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        self.is_play = None
-        self.is_stop = None
-        self.is_pause = None
+        self.is_play = False
+        self.is_stop = False
+        self.is_pause = False
+        self.is_open = False
+        self.is_streaming = False
 
         self.dev = dev
 
@@ -36,7 +38,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
             self.device = self.dev.open_file(path)
             self.depth_stream = self.device.create_depth_stream()
             self.color_stream = self.device.create_color_stream()
-            self.is_play = True
+            self.is_open = True
             print('Device open')
 
     def get_img(self):
@@ -47,41 +49,63 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         img = np.concatenate((img, img, img), axis=0)
         img = np.swapaxes(img, 0, 2)
         img = np.swapaxes(img, 0, 1)
-        # print('Image received')
+        print('Image received')
         return img
-
-    def start_streaming(self):
-        pass
 
     def load_video(self):
         pass
 
     def play_video(self):
-        print(self.is_play)
-        if not self.is_play:
+        self.is_pause = False
+
+        print('is_open = ', self.is_open)
+        print('is_play = ', self.is_play)
+        print('is_stop = ', self.is_stop)
+        print('is_pause = ', self.is_pause)
+        print('is_streaming = ', self.is_streaming)
+
+        if not self.is_open:
             self.open_device()
 
-        elif self.is_play:
-            self.depth_stream.start()
-            self.color_stream.start()
-
+        if not self.is_play:
+            self.start_streaming()
             while True:
                 img = self.get_img()
                 cv2.imshow('image', img)
                 cv2.waitKey(1)
+                if self.is_pause:
+                    self.stop_streaming()
+                    print('Pause video')
+                    break
                 if self.is_stop:
+                    self.close_streaming()
                     break
 
-            self.is_stop = False
-            self.is_play = False
-            cv2.destroyAllWindows()
-            self.depth_stream.close()
-            self.color_stream.close()
-            self.device.close()
-            print('Stream closed')
+    def start_streaming(self):
+        self.depth_stream.start()
+        self.color_stream.start()
+        self.is_streaming = True
+
+    def stop_streaming(self):
+        self.depth_stream.stop()
+        self.color_stream.stop()
+
+    def close_streaming(self):
+        self.is_streaming = False
+        self.is_play = False
+        self.is_stop = False
+        self.is_pause = False
+        self.is_open = False
+        self.is_streaming = False
+        cv2.destroyAllWindows()
+        self.depth_stream.close()
+        self.color_stream.close()
+        self.device.close()
+        print('Stream closed')
 
     def pause_video(self):
-        print('Pause')
+        self.is_play = False
+        self.is_pause = True
 
     def next_frame(self):
         print('Next')
@@ -89,8 +113,14 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
     def prev_frame(self):
         print('Previous')
 
+    def scrolling_video(self):
+        pass
+
     def stop_video(self):
         self.is_stop = True
+        if self.is_pause:
+            self.close_streaming()
+            print('Ух ты! Мы вышли из бухты')
 
     def browse_folder(self):
         p = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', r'C:\Users', filter='*.oni')
@@ -103,9 +133,9 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
                                                QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No)
 
         if reply == QtWidgets.QMessageBox.Yes:
-            # Добавить условие проверки запущенных потоков
-            # self.depth_stream.stop()
-            # self.color_stream.stop()
+            if self.is_streaming:
+                self.close_streaming()
+                print('Стриминг закрыт')
             openni2.unload()
             self.close()
             print('Вышли нах')
