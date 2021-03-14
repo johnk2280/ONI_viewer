@@ -17,6 +17,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.is_open = False
         self.is_streaming = False
         self.is_prev = False
+        self.is_next = False
 
         self.depth_frame_index = None
         self.frame_timestamp = None
@@ -55,6 +56,8 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         frame = self.depth_stream.read_frame()
         self.depth_frame_index = frame.frameIndex
         self.frame_timestamp = frame.timestamp
+        if self.is_prev and self.depth_frame_index - 3 > 0:
+            self.playback_support.seek(stream=self.depth_stream, frame_index=self.depth_frame_index - 3)
         frame_data = frame.get_buffer_as_triplet()
         img = np.frombuffer(frame_data, dtype=np.uint16)
         img.shape = (1, 480, 640)
@@ -62,11 +65,13 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         img = np.swapaxes(img, 0, 2)
         img = np.swapaxes(img, 0, 1)
         # print('Image received')
-        # print(self.depth_frame_index)
+        print(self.depth_frame_index)
         return img
 
     def play_video(self):
-        self.is_pause = False
+        if not self.is_next and not self.is_prev:
+            self.is_pause = False
+
         if not self.is_open:
             self.open_device()
 
@@ -110,9 +115,15 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.is_pause = True
 
     def next_frame(self):
+        self.is_next = True
+        self.play_video()
+        self.is_next = False
         print('Next')
 
     def prev_frame(self):
+        self.is_prev = True
+        self.play_video()
+        self.is_prev = False
         print('Prev')
 
     def set_position(self, position):
