@@ -49,6 +49,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
             self.is_open = True
             self.num_depth_frames = self.depth_stream.get_number_of_frames()
             self.num_color_frames = self.color_stream.get_number_of_frames()
+            print(self.num_depth_frames, self.num_color_frames)
             self.playback_support = openni2.PlaybackSupport(self.device)
             print('Device open')
 
@@ -56,8 +57,16 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         frame = self.depth_stream.read_frame()
         self.depth_frame_index = frame.frameIndex
         self.frame_timestamp = frame.timestamp
-        if self.is_prev and self.depth_frame_index - 3 > 0:
-            self.playback_support.seek(stream=self.depth_stream, frame_index=self.depth_frame_index - 3)
+        if self.is_prev:
+            if self.depth_frame_index > 3:
+                self.depth_frame_index -= 3
+            elif self.depth_frame_index == 3:
+                self.depth_frame_index = self.num_depth_frames - 3
+            elif self.num_depth_frames == 2:
+                self.depth_frame_index = self.num_depth_frames - 4
+            elif self.num_depth_frames == 1:
+                self.depth_frame_index = self.num_depth_frames - 5
+            self.playback_support.seek(stream=self.depth_stream, frame_index=self.depth_frame_index)
         frame_data = frame.get_buffer_as_triplet()
         img = np.frombuffer(frame_data, dtype=np.uint16)
         img.shape = (1, 480, 640)
