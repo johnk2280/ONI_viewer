@@ -49,31 +49,30 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
             self.color_stream = self.device.create_color_stream()
             self.is_open = True
             self.num_depth_frames = self.depth_stream.get_number_of_frames()
-            self.num_color_frames = self.color_stream.get_number_of_frames()
+            # self.num_color_frames = self.color_stream.get_number_of_frames()
             self.playback_support = openni2.PlaybackSupport(self.device)
             print('Device open')
 
     def get_img(self):
         frame = self.depth_stream.read_frame()
-        color_frame = self.color_stream.read_frame()
+        # color_frame = self.color_stream.read_frame()
         self.depth_frame_index = frame.frameIndex
-        self.color_frame_index = color_frame.frameIndex
+        # self.color_frame_index = color_frame.frameIndex
         self.frame_timestamp = frame.timestamp
-        self.color_frame_timestamp = color_frame.timestamp
+        # self.color_frame_timestamp = color_frame.timestamp
         if self.is_prev:
             if self.depth_frame_index > 5:
                 self.depth_frame_index -= 3
             else:
-                self.depth_frame_index = self.num_depth_frames
+                self.depth_frame_index = self.num_depth_frames - 1
             self.playback_support.seek(stream=self.depth_stream, frame_index=self.depth_frame_index)
-            self.playback_support.seek(stream=self.color_stream, frame_index=self.depth_frame_index)
         frame_data = frame.get_buffer_as_triplet()
         img = np.frombuffer(frame_data, dtype=np.uint16)
         img.shape = (1, 480, 640)
         img = np.concatenate((img, img, img), axis=0)
         img = np.swapaxes(img, 0, 2)
         img = np.swapaxes(img, 0, 1)
-        print(self.depth_frame_index, self.color_frame_index)
+        print(self.depth_frame_index)
         return img
 
     def play_video(self):
@@ -119,6 +118,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.depth_stream.close()
         self.color_stream.close()
         self.device.close()
+        print('self.is_stop', self.is_stop)
         print('Stream closed')
 
     def pause_video(self):
@@ -150,6 +150,9 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         print(self.horizontalSlider.value())
 
     def stop_video(self):
+        if not self.is_open:
+            return
+
         self.is_stop = True
         if self.is_pause:
             self.close_streaming()
