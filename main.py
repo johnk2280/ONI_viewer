@@ -20,6 +20,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.is_next = False
 
         self.depth_frame_index = None
+        self.color_frame_index = None
         self.frame_timestamp = None
         self.num_depth_frames = None
         self.num_color_frames = None
@@ -49,32 +50,30 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
             self.is_open = True
             self.num_depth_frames = self.depth_stream.get_number_of_frames()
             self.num_color_frames = self.color_stream.get_number_of_frames()
-            print(self.num_depth_frames, self.num_color_frames)
             self.playback_support = openni2.PlaybackSupport(self.device)
             print('Device open')
 
     def get_img(self):
         frame = self.depth_stream.read_frame()
+        color_frame = self.color_stream.read_frame()
         self.depth_frame_index = frame.frameIndex
+        self.color_frame_index = color_frame.frameIndex
         self.frame_timestamp = frame.timestamp
+        self.color_frame_timestamp = color_frame.timestamp
         if self.is_prev:
-            if self.depth_frame_index > 3:
+            if self.depth_frame_index > 5:
                 self.depth_frame_index -= 3
-            elif self.depth_frame_index == 3:
-                self.depth_frame_index = self.num_depth_frames - 3
-            elif self.num_depth_frames == 2:
-                self.depth_frame_index = self.num_depth_frames - 4
-            elif self.num_depth_frames == 1:
-                self.depth_frame_index = self.num_depth_frames - 5
+            else:
+                self.depth_frame_index = self.num_depth_frames
             self.playback_support.seek(stream=self.depth_stream, frame_index=self.depth_frame_index)
+            self.playback_support.seek(stream=self.color_stream, frame_index=self.depth_frame_index)
         frame_data = frame.get_buffer_as_triplet()
         img = np.frombuffer(frame_data, dtype=np.uint16)
         img.shape = (1, 480, 640)
         img = np.concatenate((img, img, img), axis=0)
         img = np.swapaxes(img, 0, 2)
         img = np.swapaxes(img, 0, 1)
-        # print('Image received')
-        print(self.depth_frame_index)
+        print(self.depth_frame_index, self.color_frame_index)
         return img
 
     def play_video(self):
@@ -83,6 +82,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
 
         if not self.is_open:
             self.open_device()
+            return
 
         if not self.is_play:
             self.start_streaming()
@@ -90,6 +90,8 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
                 img = self.get_img()
                 cv2.imshow('image', img)
                 cv2.waitKey(1)
+                if self.is_next:
+                    self.is_pause = True
                 if self.is_pause:
                     self.stop_streaming()
                     break
@@ -124,25 +126,28 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.is_pause = True
 
     def next_frame(self):
-        self.is_next = True
-        self.play_video()
-        self.is_next = False
-        print('Next')
+        if self.is_pause:
+            self.is_next = True
+            self.play_video()
+            self.is_next = False
+            # print('Next')
 
     def prev_frame(self):
-        self.is_prev = True
-        self.play_video()
-        self.is_prev = False
-        print('Prev')
+        if self.is_pause:
+            self.is_prev = True
+            self.play_video()
+            self.is_prev = False
+            # print('Prev')
 
     def set_position(self, position):
-        pass
+        self.duration_changed()
 
     def position_changed(self):
         self.horizontalSlider.setValue()
 
     def duration_changed(self):
-        self.horizontalSlider.setRange(0, self.num_depth_frames)
+        # self.horizontalSlider.setRange(0, self.num_depth_frames)
+        print(self.horizontalSlider.value())
 
     def stop_video(self):
         self.is_stop = True
@@ -151,7 +156,6 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
 
     def browse_folder(self):
         p = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', r'C:\Users', filter='*.oni')
-        print(p[0])
         if p[0]:
             return bytes(''.join([el if el != '/' else '//' for el in list(p[0])]), encoding='utf-8')
 
