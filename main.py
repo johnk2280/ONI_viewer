@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 from openni import openni2
 import numpy as np
