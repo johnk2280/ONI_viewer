@@ -38,9 +38,9 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.next_button.clicked.connect(self.next_frame)
         self.prev_button.clicked.connect(self.prev_frame)
         self.stop_button.clicked.connect(self.stop_video)
-        # self.horizontalSlider.sliderPressed.connect(self.pause_video)
-        # self.horizontalSlider.sliderReleased.connect(self.play_video)
-        # self.horizontalSlider.sliderMoved.connect(self.set_position)
+        self.horizontalSlider.sliderPressed.connect(self.pause_video)
+        self.horizontalSlider.sliderReleased.connect(self.play_video)
+        self.horizontalSlider.sliderMoved.connect(self.set_position)
 
     def open_device(self):
         path = self.browse_folder()
@@ -59,7 +59,6 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
 
     def get_frame(self):
         frame = self.depth_stream.read_frame()
-        frame_data = frame.get_buffer_as_uint16()
         self.depth_frame_index = frame.frameIndex
         self.frame_timestamp = frame.timestamp
 
@@ -72,8 +71,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
                 self.depth_frame_index = self.num_depth_frames - 2
             self.set_frame(self.depth_frame_index)
 
-        # if self.is_slider:
-        #     self.set_frame(self.horizontalSlider.value())
+        frame_data = frame.get_buffer_as_uint16()
 
         return frame_data
 
@@ -88,7 +86,7 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
         img = np.concatenate((img, img, img), axis=0)
         img = np.swapaxes(img, 0, 2)
         img = np.swapaxes(img, 0, 1)
-        print('индекс кадра', self.depth_frame_index)
+        print(self.depth_frame_index)
         return img
 
     def play_video(self):
@@ -152,13 +150,6 @@ class OniPlayer(QtWidgets.QMainWindow, design.Ui_MainWindow):
             self.is_prev = False
 
     def set_position(self):
-        self.is_slider = True
-        print('slider value', self.horizontalSlider.value())
-        # self.set_frame(self.horizontalSlider.value())
-        # self.is_slider = False
-
-    def position_changed(self):
-        # self.horizontalSlider.sliderPosition()
         pass
 
     def set_duration(self, duration):
