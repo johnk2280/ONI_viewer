@@ -1,31 +1,27 @@
 # -*- coding: utf-8 -*-
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtMultimediaWidgets import QVideoWidget
 
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1319, 627)
-
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
         self.verticalLayout.setObjectName("verticalLayout")
-
-        self.video_layout = QtWidgets.QHBoxLayout()
-        self.video_layout.setObjectName("video_layout")
-        self.video_widget_left = QVideoWidget(self.centralwidget)
-        self.video_widget_left.setMinimumSize(QtCore.QSize(640, 480))
-        self.video_widget_left.setObjectName("video_widget_left")
-        self.video_layout.addWidget(self.video_widget_left)
-        self.video_widget_right = QVideoWidget(self.centralwidget)
-        self.video_widget_right.setMinimumSize(QtCore.QSize(640, 480))
-        self.video_widget_right.setObjectName("video_widget_right")
-        self.video_layout.addWidget(self.video_widget_right)
-        self.verticalLayout.addLayout(self.video_layout)
-
+        self.label_layout = QtWidgets.QHBoxLayout()
+        self.label_layout.setObjectName("label_layout")
+        self.label_left = QtWidgets.QLabel(self.centralwidget)
+        self.label_left.setMinimumSize(QtCore.QSize(640, 480))
+        self.label_left.setObjectName("label_left")
+        self.label_layout.addWidget(self.label_left)
+        self.label_right = QtWidgets.QLabel(self.centralwidget)
+        self.label_right.setMinimumSize(QtCore.QSize(640, 480))
+        self.label_right.setObjectName("label_right")
+        self.label_layout.addWidget(self.label_right)
+        self.verticalLayout.addLayout(self.label_layout)
         self.slider_layout = QtWidgets.QHBoxLayout()
         self.slider_layout.setObjectName("slider_layout")
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -39,7 +35,6 @@ class Ui_MainWindow(object):
         spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.slider_layout.addItem(spacerItem1)
         self.verticalLayout.addLayout(self.slider_layout)
-
         self.control_layout = QtWidgets.QHBoxLayout()
         self.control_layout.setObjectName("control_layout")
         self.open_button = QtWidgets.QPushButton(self.centralwidget)
@@ -85,9 +80,11 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "ONI_viewer"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.label_left.setText(_translate("MainWindow", "TextLabel"))
+        self.label_right.setText(_translate("MainWindow", "TextLabel"))
         self.open_button.setText(_translate("MainWindow", "Open"))
-        self.stop_button.setText(_translate("MainWindow", 'Stop'))
+        self.stop_button.setText(_translate("MainWindow", "Stop"))
         self.prev_button.setText(_translate("MainWindow", "Previous"))
         self.play_button.setText(_translate("MainWindow", "Play"))
         self.next_button.setText(_translate("MainWindow", "Next"))
@@ -95,5 +92,3 @@ class Ui_MainWindow(object):
         self.action_open.setText(_translate("MainWindow", "Open"))
         self.actionQuit.setText(_translate("MainWindow", "Quit"))
         self.action_quit.setText(_translate("MainWindow", "Quit"))
-
-
