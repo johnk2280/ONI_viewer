@@ -154,12 +154,12 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         self.get_color_frame()
 
     def get_next_frame(self):
-        if not self.timer.isActive():
+        if not self.timer.isActive() and self.is_streaming:
             self.horizontalSlider.setValue(self.horizontalSlider.value() + 1)
             self.set_position(self.horizontalSlider.value())
 
     def get_prev_frame(self):
-        if not self.timer.isActive():
+        if not self.timer.isActive() and self.is_streaming:
             self.horizontalSlider.setValue(self.horizontalSlider.value() - 1)
             self.set_position(self.horizontalSlider.value())
 
