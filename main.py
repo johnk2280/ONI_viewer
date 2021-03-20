@@ -1,6 +1,6 @@
 import sys
 import cv2
-import numpy
+import numpy as np
 import qimage2ndarray
 
 from openni import openni2
@@ -84,6 +84,7 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
             self.num_depth_frames = self.depth_stream.get_number_of_frames()
             self.num_color_frames = self.color_stream.get_number_of_frames()
             self.playback_support = openni2.PlaybackSupport(self.device)
+            self.horizontalSlider.setRange(0, self.depth_stream.get_number_of_frames())
 
             self.is_open = True
 
@@ -98,10 +99,31 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
     def start_streaming(self):
         self.depth_stream.start()
         self.color_stream.start()
-        self.horizontalSlider.setRange(0, self.depth_stream.get_number_of_frames())
         self.playback_support.seek(self.depth_stream, 0)
         self.playback_support.seek(self.color_stream, 0)
+        self.get_depth_frame()
+        self.get_color_frame()
+        self.timer.timeout.connect(self.position_changed)
+        self.timer.start(40)
         self.is_streaming = True
+
+    def get_depth_frame(self):
+        frame = self.depth_stream.read_frame()
+        frame_data = frame.get_buffer_as_uint16()
+        img = np.frombuffer(frame_data, dtype=np.uint16)
+        img = img.reshape(frame.height, frame.width)
+        img = cv2.convertScaleAbs(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), alpha=(255 / 65535))
+        img = qimage2ndarray.array2qimage(img)
+        self.label_left.setPixmap(QtGui.QPixmap.fromImage(img))
+
+    def get_color_frame(self):
+        frame = self.color_stream.read_frame()
+        frame_data = frame.get_buffer_as_uint8()
+        img = np.frombuffer(frame_data, dtype=np.uint8)
+        img = img.reshape(frame.height, frame.width, 3)
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        img = qimage2ndarray.array2qimage(img)
+        self.label_right.setPixmap(QtGui.QPixmap.fromImage(img))
 
     def stop_streaming(self):
         self.is_play = False
@@ -125,6 +147,11 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         print('Stream closed')
 
     def play_video(self):
+        print('1')
+        if not self.is_streaming:
+            self.start_streaming()
+
+        print('2')
         if self.is_play:
             self.timer.stop()
             self.play_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaPause))
@@ -134,14 +161,19 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         else:
             if not self.is_streaming:
                 self.start_streaming()
-
-            #  self.set_frame()
-            self.timer.timeout.connect(self.slider_move)
+            print('3')
+            self.get_depth_frame()
+            self.get_color_frame()
+            print('4')
+            self.timer.timeout.connect(self.position_changed)
+            print('5')
             self.timer.start(40)
+            print('6')
             self.play_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaPlay))
             self.play_button.setText('Play')
             self.is_play = True
             self.is_pause = False
+            print('7')
 
     def stop_video(self):
         if self.is_open:
@@ -155,25 +187,25 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
             self.play_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaPlay))
             self.play_button.setText('Play')
 
-    def position_changed(self, position):
-        print('position_changed', position)
-        self.horizontalSlider.setSliderPosition(position)
-        # self.horizontalSlider.setValue(position)
+    def position_changed(self):
+        self.horizontalSlider.setValue(self.horizontalSlider.value() + 1)
+        self.set_position(self.horizontalSlider.value())
 
     def set_position(self, position):
-        print('set_position', position)
-        self.depth_media_player.setPosition(position)
-        self.color_media_player.setPosition(position)
+        self.playback_support.seek(self.depth_stream, position)
+        self.playback_support.seek(self.color_stream, position)
+        self.get_depth_frame()
+        self.get_color_frame()
 
     def get_next_frame(self, position):
-        print(position)
-        if self.depth_media_player.state() == QMediaPlayer.PlayingState \
-                or self.depth_media_player.state() == QMediaPlayer.PausedState:
-            self.depth_media_player.setPosition(position + 1)
-            self.color_media_player.setPosition(position + 1)
+        if self.is_pause:
+            self.horizontalSlider.setValue(self.horizontalSlider.value() + 1)
+            self.set_position(self.horizontalSlider.value())
 
     def get_prev_frame(self):
-        pass
+        if self.is_pause:
+            self.horizontalSlider.setValue(self.horizontalSlider.value() - 1)
+            self.set_position(self.horizontalSlider.value())
 
     def browse_folder(self):
         p = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', r'C:\Users', filter='*.oni')
