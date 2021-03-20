@@ -80,9 +80,8 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.label_left.setText(_translate("MainWindow", "TextLabel"))
-        self.label_right.setText(_translate("MainWindow", "TextLabel"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "ONI_Player"))
+        MainWindow.setWindowIcon(QtGui.QIcon('media/player-play_114441.png'))
         self.open_button.setText(_translate("MainWindow", "Open"))
         self.stop_button.setText(_translate("MainWindow", "Stop"))
         self.prev_button.setText(_translate("MainWindow", "Previous"))
