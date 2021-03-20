@@ -2,11 +2,8 @@ import sys
 import cv2
 import numpy as np
 import qimage2ndarray
-
 from openni import openni2
-
 from PyQt5 import QtCore, QtWidgets, QtGui
-
 import gui
 
 
