@@ -5,7 +5,6 @@ import qimage2ndarray
 from openni import openni2
 from PyQt5 import QtCore, QtWidgets, QtGui
 import gui
-import traceback
 
 
 class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
