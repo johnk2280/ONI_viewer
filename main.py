@@ -5,6 +5,7 @@ import qimage2ndarray
 from openni import openni2
 from PyQt5 import QtCore, QtWidgets, QtGui
 import gui
+import traceback
 
 
 class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
@@ -65,7 +66,7 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
             self.num_depth_frames = self.depth_stream.get_number_of_frames()
             self.num_color_frames = self.color_stream.get_number_of_frames()
             self.playback_support = openni2.PlaybackSupport(self.device)
-            self.horizontalSlider.setRange(0, self.num_depth_frames)
+            self.horizontalSlider.setRange(2, self.num_depth_frames)
 
             self.is_open = True
 
@@ -78,8 +79,8 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
     def start_streaming(self):
         self.depth_stream.start()
         self.color_stream.start()
-        self.playback_support.seek(self.depth_stream, 0)
-        self.playback_support.seek(self.color_stream, 0)
+        self.playback_support.seek(self.depth_stream, 2)
+        self.playback_support.seek(self.color_stream, 2)
         self.get_depth_frame()
         self.get_color_frame()
         self.timer.timeout.connect(self.position_changed)
@@ -90,9 +91,10 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         frame_data = frame.get_buffer_as_uint16()
         img = np.frombuffer(frame_data, dtype=np.uint16)
         img = img.reshape(frame.height, frame.width)
-        img = cv2.convertScaleAbs(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), alpha=(1000.0 / 65535.0))
+        img = cv2.convertScaleAbs(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), alpha=(1200.0 / 65535.0))
         img = qimage2ndarray.array2qimage(img)
         self.label_left.setPixmap(QtGui.QPixmap.fromImage(img))
+        print(frame.frameIndex)
 
     def get_color_frame(self):
         frame = self.color_stream.read_frame()
@@ -102,6 +104,7 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
         img = qimage2ndarray.array2qimage(img)
         self.label_right.setPixmap(QtGui.QPixmap.fromImage(img))
+        print(frame.frameIndex)
 
     def close_streaming(self):
         self.play_button.setEnabled(False)
