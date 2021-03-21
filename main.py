@@ -173,14 +173,24 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
             return bytes(''.join([el if el != '/' else '//' for el in list(p[0])]), encoding='utf-8')
 
     def quit_player(self):
-        reply = QtWidgets.QMessageBox.question(self, 'Message', 'Are you sure to quit?', QtWidgets.QMessageBox.Yes |
-                                               QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No)
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            'Message',
+            'Are you sure to quit?',
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No
+        )
 
         if reply == QtWidgets.QMessageBox.Yes:
             if self.is_streaming:
                 self.close_streaming()
             openni2.unload()
             self.close()
+
+    def closeEvent(self, a0: QtGui.QCloseEvent):
+        if self.is_streaming:
+            self.close_streaming()
+        openni2.unload()
 
 
 if __name__ == '__main__':
