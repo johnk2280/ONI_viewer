@@ -73,7 +73,6 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
             self.stop_button.setEnabled(True)
             self.next_button.setEnabled(True)
             self.prev_button.setEnabled(True)
-            self.horizontalSlider.setEnabled(True)
 
     def start_streaming(self):
         self.depth_stream.start()
@@ -120,6 +119,8 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         self.is_streaming = False
 
     def play_video(self):
+        self.horizontalSlider.setEnabled(True)
+
         if not self.is_streaming:
             self.start_streaming()
 
@@ -152,11 +153,17 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
 
     def get_next_frame(self):
         if not self.timer.isActive() and self.is_streaming:
+            if self.horizontalSlider.value() == self.num_depth_frames:
+                self.horizontalSlider.setValue(0)
+
             self.horizontalSlider.setValue(self.horizontalSlider.value() + 1)
             self.set_position(self.horizontalSlider.value())
 
     def get_prev_frame(self):
         if not self.timer.isActive() and self.is_streaming:
+            if self.horizontalSlider.value() == 2:
+                self.horizontalSlider.setValue(self.num_depth_frames)
+
             self.horizontalSlider.setValue(self.horizontalSlider.value() - 1)
             self.set_position(self.horizontalSlider.value())
 
