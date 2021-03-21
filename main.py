@@ -93,7 +93,6 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         img = cv2.convertScaleAbs(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), alpha=(1200.0 / 65535.0))
         img = qimage2ndarray.array2qimage(img)
         self.label_left.setPixmap(QtGui.QPixmap.fromImage(img))
-        print(frame.frameIndex)
 
     def get_color_frame(self):
         frame = self.color_stream.read_frame()
@@ -103,7 +102,6 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
         img = qimage2ndarray.array2qimage(img)
         self.label_right.setPixmap(QtGui.QPixmap.fromImage(img))
-        print(frame.frameIndex)
 
     def close_streaming(self):
         self.play_button.setEnabled(False)
