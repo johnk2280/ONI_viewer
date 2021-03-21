@@ -48,6 +48,8 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
 
         self.horizontalSlider.setEnabled(False)
         self.horizontalSlider.sliderMoved.connect(self.set_position)
+        self.horizontalSlider.sliderPressed.connect(self.timer.stop)
+        self.horizontalSlider.sliderReleased.connect(self.timer.start)
 
     def open_device(self):
 
@@ -119,10 +121,9 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         self.is_streaming = False
 
     def play_video(self):
-        self.horizontalSlider.setEnabled(True)
-
         if not self.is_streaming:
             self.start_streaming()
+            self.horizontalSlider.setEnabled(True)
 
         if self.timer.isActive():
             self.timer.stop()
