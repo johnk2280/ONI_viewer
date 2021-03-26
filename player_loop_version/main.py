@@ -1,3 +1,4 @@
+
 import sys
 import cv2
 import numpy as np
@@ -209,6 +210,7 @@ class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
         openni2.unload()
 
 
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     openni2.initialize()
@@ -216,3 +218,4 @@ if __name__ == '__main__':
     o_player = OniPlayer(dev)
     o_player.show()
     sys.exit(app.exec_())
+
