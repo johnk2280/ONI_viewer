@@ -1,166 +1,221 @@
-from openni import openni2
+
 import sys
-from PyQt5 import QtCore, QtGui, QtWidgets
 import cv2
 import numpy as np
+import qimage2ndarray
+from openni import openni2
+from PyQt5 import QtWidgets, QtCore, QtGui
+import gui
+import time
 
 
-class OniPlayer(QtWidgets.QWidget):
-
-    def __init__(self, dev, width=640, height=480, fps=30):
+class MyLoop(QtCore.QThread):
+    def __init__(self, player):
         super().__init__()
+        self.player = player
 
-        self.video = None
-        self.play = None
-        self.pause = None
-        self.next = None
-        self.prev = None
-        self.stop = None
-        self.by_step = None
-        self.wait_k = 34
+    def run(self) -> None:
+        while True:
+            self.player.get_next_frame()
+            time.sleep(0.01)
 
-        # инициализация OpenNI2
-        self.dev = dev.open_file(self.browse_folder())
 
-        self.depth_stream = self.dev.create_depth_stream()
-        # self.color_stream = self.dev.create_color_stream()
-        self.v_mode = self.depth_stream.get_video_mode()
-        self.play_sup = openni2.PlaybackSupport(self.dev)
+class OniPlayer(QtWidgets.QMainWindow, gui.Ui_MainWindow):
+    def __init__(self, device):
+        super().__init__()
+        self.setupUi(self)
 
-        self.width = self.v_mode.resolutionX
-        self.height = self.v_mode.resolutionY
-        self.fps = self.v_mode.fps
+        self.is_open = False
+        self.is_streaming = False
+        self.is_play = False
 
-        # self.start_streaming()
+        self.cycle = MyLoop(player=self)
 
-        self.video_capture = cv2.VideoCapture()
-        self.video_size = QtCore.QSize(self.width, self.height)
-        self.frame_timer = QtCore.QTimer()
+        self.device = device
+        self.depth_stream = None
+        self.color_stream = None
+        self.num_depth_frames = 0
+        self.num_color_frames = 0
+        self.playback_support = None
 
-        # self.display_video()
+        self.play_button.setEnabled(False)
+        self.play_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaPlay))
+        self.play_button.clicked.connect(self.play_video)
 
-        """Инициализация виджетов"""
-
-        self.frame_label = QtWidgets.QLabel()
-        self.quit_button = QtWidgets.QPushButton('Quit')
-        self.play_pause_button = QtWidgets.QPushButton('Play')
-        self.stop_button = QtWidgets.QPushButton('Stop')
-        self.next_button = QtWidgets.QPushButton('Next', self.frame_label)
-        self.prev_button = QtWidgets.QPushButton('Previous')
-        self.browse_button = QtWidgets.QPushButton('Open')
-        self.horizontal_slider = QtWidgets.QSlider(self.frame_label)
-        self.lcd = QtWidgets.QLCDNumber(self.frame_label)
-        self.main_layout = QtWidgets.QGridLayout()
-
-        self.setup_ui()
-
-    def setup_ui(self):
-        """Устанавливаем название и ярлык в главном окне"""
-        self.setWindowTitle('ONI Player')
-        self.setWindowIcon(QtGui.QIcon('media/player-play_114441.png'))
-
-        """Устанавливаем размер поля вывода под размер видео"""
-
-        self.frame_label.setFixedSize(self.video_size)
-
-        """Коннектим кнопки с функциями класса"""
-
-        self.quit_button.clicked.connect(self.close_window)
-        self.play_pause_button.clicked.connect(self.play_pause_video)
+        self.stop_button.setEnabled(False)
+        self.stop_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaStop))
         self.stop_button.clicked.connect(self.stop_video)
+
+        self.next_button.setEnabled(False)
+        self.next_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaSkipForward))
         self.next_button.clicked.connect(self.get_next_frame)
+
+        self.prev_button.setEnabled(False)
+        self.prev_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaSkipBackward))
         self.prev_button.clicked.connect(self.get_prev_frame)
-        self.browse_button.clicked.connect(self.browse_folder)
-        self.horizontal_slider.valueChanged.connect(self.scroll_video)
 
-        """Устанавливаем слайдер по горизонтали"""
-        self.horizontal_slider.setOrientation(QtCore.Qt.Horizontal)
+        self.open_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DialogOpenButton))
+        self.open_button.clicked.connect(self.open_device)
 
-        """Рисуем поля для кнопок и поля вывода изображения"""
-        self.main_layout.addWidget(self.frame_label, 0, 0, 0, 0)
-        self.main_layout.addWidget(self.quit_button, 7, 0, 1, 4)
-        self.main_layout.addWidget(self.stop_button, 5, 0, 1, 1)
-        self.main_layout.addWidget(self.prev_button, 5, 1, 1, 1)
-        self.main_layout.addWidget(self.play_pause_button, 5, 2, 1, 1)
-        self.main_layout.addWidget(self.next_button, 5, 3, 1, 1)
-        self.main_layout.addWidget(self.browse_button, 6, 0, 1, 4)
-        self.main_layout.addWidget(self.horizontal_slider, 4, 0, 2, 4)
-        self.main_layout.addWidget(self.lcd, 0, 0, 1, 1)
+        self.quit_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DialogCancelButton))
+        self.quit_button.clicked.connect(self.quit_player)
 
-        self.setLayout(self.main_layout)
+        self.horizontalSlider.setEnabled(False)
+        self.horizontalSlider.sliderMoved.connect(self.set_position)
+        self.horizontalSlider.sliderPressed.connect(self.play_video)
+        self.horizontalSlider.sliderReleased.connect(self.play_video)
 
-    def setup_video(self):
-        pass
+    def open_device(self):
+        if self.is_open:
+            self.stop_video()
 
-    def get_data(self):
-        frame = self.depth_stream.read_frame()
-        frame_data = frame.get_buffer_as_uint16()
-        img = np.frombuffer(frame_data, dtype=np.uint16)
-        img.shape = (1, self.height, self.width)
-        img = np.concatenate((img, img, img), axis=0)
-        img = np.swapaxes(img, 0, 2)
-        img = np.swapaxes(img, 0, 1)
-        return img
+        path = self.browse_folder()
+
+        if path:
+            self.device = self.device.open_file(path)
+            self.depth_stream = self.device.create_depth_stream()
+            self.color_stream = self.device.create_color_stream()
+            self.num_depth_frames = self.depth_stream.get_number_of_frames()
+            self.num_color_frames = self.color_stream.get_number_of_frames()
+            self.playback_support = openni2.PlaybackSupport(self.device)
+            self.horizontalSlider.setRange(2, self.num_depth_frames)
+
+            self.is_open = True
+
+            self.play_button.setEnabled(True)
+            self.stop_button.setEnabled(True)
+            self.next_button.setEnabled(True)
+            self.prev_button.setEnabled(True)
 
     def start_streaming(self):
         self.depth_stream.start()
-        # self.color_stream.start()
-        while True:
-            img = self.get_data()
-            cv2.imshow('image', img)
-            cv2.waitKey(self.wait_k)
+        self.color_stream.start()
+        self.playback_support.seek(self.depth_stream, 2)
+        self.playback_support.seek(self.color_stream, 2)
+        self.get_depth_frame()
+        self.get_color_frame()
+        self.is_streaming = True
 
-    def display_video(self):
-        self.start_streaming()
+    def get_depth_frame(self):
+        frame = self.depth_stream.read_frame()
+        frame_data = frame.get_buffer_as_uint16()
+        img = np.frombuffer(frame_data, dtype=np.uint16)
+        img = img.reshape(frame.height, frame.width)
+        img = cv2.convertScaleAbs(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), alpha=(1200.0 / 65535.0))
+        img = qimage2ndarray.array2qimage(img)
+        self.left_label.setPixmap(QtGui.QPixmap.fromImage(img))
 
-    def play_pause_video(self):
-        if not self.pause:
-            self.play_pause_button.setText('Play')
-            self.wait_k = 0
-            # self.play_sup.set_speed(0.0)
+    def get_color_frame(self):
+        frame = self.color_stream.read_frame()
+        frame_data = frame.get_buffer_as_uint8()
+        img = np.frombuffer(frame_data, dtype=np.uint8)
+        img = img.reshape(frame.height, frame.width, 3)
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        img = qimage2ndarray.array2qimage(img)
+        self.right_label.setPixmap(QtGui.QPixmap.fromImage(img))
+
+    def close_streaming(self):
+        self.play_button.setEnabled(False)
+        self.stop_button.setEnabled(False)
+        self.next_button.setEnabled(False)
+        self.prev_button.setEnabled(False)
+
+        self.horizontalSlider.setEnabled(False)
+        self.horizontalSlider.setSliderPosition(0)
+
+        self.cycle.terminate()
+
+        self.left_label.clear()
+        self.right_label.clear()
+
+        self.depth_stream.close()
+        self.color_stream.close()
+        self.device.close()
+
+        self.is_open = False
+        self.is_streaming = False
+
+    def play_video(self):
+        if not self.is_streaming:
+            self.start_streaming()
+            self.horizontalSlider.setEnabled(True)
+
+        if self.is_play:
+            self.play_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaPlay))
+            self.play_button.setText('Play')
+            self.next_button.setEnabled(True)
+            self.prev_button.setEnabled(True)
+            self.is_play = False
+
+            self.cycle.terminate()
+
         else:
-            self.play_pause_button.setText('Pause')
-            self.wait_k = 34
-            # self.play_sup.set_speed(1.0)
-        self.pause = not self.pause
-        self.display_video()
+            self.play_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaPause))
+            self.play_button.setText('Pause')
+            self.next_button.setEnabled(False)
+            self.prev_button.setEnabled(False)
+            self.is_play = True
 
-        print(self.pause)
+            self.cycle.start()
 
     def stop_video(self):
-        self.depth_stream.stop()
-        # self.color_stream.stop()
-        openni2.unload()
+        self.is_play = False
+        self.play_button.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_MediaPlay))
+        self.play_button.setText('Play')
+        self.close_streaming()
+
+    def set_position(self, position):
+        self.playback_support.seek(self.depth_stream, position)
+        self.playback_support.seek(self.color_stream, position)
+        self.get_depth_frame()
+        self.get_color_frame()
 
     def get_next_frame(self):
-        pass
+        if self.horizontalSlider.value() == self.num_depth_frames:
+            self.horizontalSlider.setValue(0)
+
+        self.horizontalSlider.setValue(self.horizontalSlider.value() + 1)
+        self.set_position(self.horizontalSlider.value())
 
     def get_prev_frame(self):
-        pass
+        if self.horizontalSlider.value() == 2:
+            self.horizontalSlider.setValue(self.num_depth_frames)
 
-    def scroll_video(self):
-        # self.horizontal_slider.valueChanged.connect(self.lcd.display)
-        pass
+        self.horizontalSlider.setValue(self.horizontalSlider.value() - 1)
+        self.set_position(self.horizontalSlider.value())
 
     def browse_folder(self):
         p = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', r'C:\Users', filter='*.oni')
-        return bytes(''.join([el if el != '/' else '//' for el in list(p[0])]), encoding='utf-8')
+        if p[0]:
+            return bytes(''.join([el if el != '/' else '//' for el in list(p[0])]), encoding='utf-8')
 
-    def close_window(self):
-        reply = QtWidgets.QMessageBox.question(self, 'Message', 'Are you sure to quit?', QtWidgets.QMessageBox.Yes |
-                                               QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No)
+    def quit_player(self):
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            'Message',
+            'Are you sure to quit?',
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No
+        )
 
         if reply == QtWidgets.QMessageBox.Yes:
-            self.depth_stream.stop()
-            # self.color_stream.stop()
+            if self.is_streaming:
+                self.close_streaming()
             openni2.unload()
             self.close()
+
+    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
+        if self.is_streaming:
+            self.close_streaming()
+        openni2.unload()
+
 
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     openni2.initialize()
     dev = openni2.Device
-    player = OniPlayer(dev)
-    player.show()
-    sys.exit(app.exec())
+    o_player = OniPlayer(dev)
+    o_player.show()
+    sys.exit(app.exec_())
+
